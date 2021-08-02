@@ -1,21 +1,19 @@
-import { Controller } from '@/presentation/protocols'
+import {Controller} from '@/presentation/protocols';
+import {RequestHandler} from 'express';
 
-import { Request, Response } from 'express'
+type Adapter = (controller: Controller) => RequestHandler;
 
-export const adaptRoute = (controller: Controller) => {
-  return async (req: Request, res: Response) => {
-    const request = {
-      ...(req.body || {}),
-      ...(req.params || {}),
-      accountId: req.accountId
-    }
-    const httpResponse = await controller.handle(request)
-    if (httpResponse.statusCode >= 200 && httpResponse.statusCode <= 299) {
-      res.status(httpResponse.statusCode).json(httpResponse.body)
-    } else {
-      res.status(httpResponse.statusCode).json({
-        error: httpResponse.body.message
-      })
-    }
-  }
-}
+export const adaptRoute: Adapter = controller => async (request, response) => {
+	const requestHandler = {
+		...(request.body  || {}),
+		...(request.query || {}),
+		accountId: request.accountId
+	};
+
+	const {body, statusCode} = await controller.handle(requestHandler);
+	const bodyOrError = statusCode >= 200 && statusCode <= 299
+		? body
+		: {error: body.message};
+
+	response.status(statusCode).json(bodyOrError);
+};
